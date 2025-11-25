@@ -1,18 +1,16 @@
 'use client'
 
+import { Suspense } from 'react';
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn, signUp, signInWithGoogle } from '@/lib/auth';
 import { Mail, Lock, User, AlertCircle } from 'lucide-react';
 
-export default function AuthPage() {
+function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  
-  // Check URL parameter for mode (login or signup)
   const modeParam = searchParams.get('mode');
   const [isLogin, setIsLogin] = useState(modeParam !== 'signup');
-  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,11 +20,18 @@ export default function AuthPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    // Update isLogin based on URL parameter
+    if (modeParam === 'signup') {
+      setIsLogin(false);
+    } else if (modeParam === 'login') {
+      setIsLogin(true);
+    }
+
     const authError = searchParams.get('error');
     if (authError === 'auth_failed') {
       setError('Authentication failed. Please try again.');
     }
-  }, [searchParams]);
+  }, [searchParams, modeParam]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -265,5 +270,17 @@ export default function AuthPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function AuthPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+      </div>
+    }>
+      <AuthForm />
+    </Suspense>
   );
 }
