@@ -1,12 +1,14 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from './supabase';
 
 interface LikeContextType {
   likedProducts: Set<string>;
   toggleLike: (productId: string) => Promise<void>;
   isLiked: (productId: string) => boolean;
+  isAuthenticated: boolean;
 }
 
 const LikeContext = createContext<LikeContextType | undefined>(undefined);
@@ -14,9 +16,25 @@ const LikeContext = createContext<LikeContextType | undefined>(undefined);
 export function LikeProvider({ children }: { children: ReactNode }) {
   const [likedProducts, setLikedProducts] = useState<Set<string>>(new Set());
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
     loadUserLikes();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setUserId(session.user.id);
+        setIsAuthenticated(true);
+        loadUserLikes();
+      } else {
+        setUserId(null);
+        setIsAuthenticated(false);
+        setLikedProducts(new Set());
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadUserLikes = async () => {
@@ -25,10 +43,12 @@ export function LikeProvider({ children }: { children: ReactNode }) {
       
       if (!user) {
         setUserId(null);
+        setIsAuthenticated(false);
         return;
       }
 
       setUserId(user.id);
+      setIsAuthenticated(true);
 
       // Get user's liked products
       const { data: likes } = await supabase
@@ -45,9 +65,9 @@ export function LikeProvider({ children }: { children: ReactNode }) {
   };
 
   const toggleLike = async (productId: string) => {
-    if (!userId) {
-      alert('Please login to like products');
-      return;
+    if (!userId || !isAuthenticated) {
+      // Instead of alert, throw error that component can handle
+      throw new Error('AUTH_REQUIRED');
     }
 
     const isCurrentlyLiked = likedProducts.has(productId);
@@ -91,7 +111,7 @@ export function LikeProvider({ children }: { children: ReactNode }) {
       }
     } catch (error: any) {
       console.error('Error toggling like:', error);
-      alert('Failed to update like. Please try again.');
+      throw error;
     }
   };
 
@@ -100,7 +120,7 @@ export function LikeProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <LikeContext.Provider value={{ likedProducts, toggleLike, isLiked }}>
+    <LikeContext.Provider value={{ likedProducts, toggleLike, isLiked, isAuthenticated }}>
       {children}
     </LikeContext.Provider>
   );
