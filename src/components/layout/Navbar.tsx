@@ -28,11 +28,13 @@ export default function Navbar() {
     loadUser();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async () => {
+      console.log('🔄 Navbar: Auth state changed, reloading user...');
       loadUser();
     });
 
     // Also listen for window focus to reload user data
     const handleFocus = () => {
+      console.log('🔄 Navbar: Window focused, reloading user...');
       loadUser();
     };
     
@@ -45,8 +47,15 @@ export default function Navbar() {
   }, []);
 
   const loadUser = async () => {
+    console.log('👤 Navbar: Loading user...');
     const userData = await getCurrentUser();
+    
     if (userData) {
+      console.log('✅ Navbar: User loaded:', {
+        email: userData.email,
+        isSeller: userData.isSeller
+      });
+      
       setUser({
         id: userData.id,
         email: userData.email,
@@ -55,19 +64,31 @@ export default function Navbar() {
         sellerVerified: userData.sellerVerified,
       });
     } else {
+      console.log('❌ Navbar: No user found');
       setUser(null);
     }
   };
 
   const handleBecomeSellerClick = async () => {
-    // Check fresh user state before opening modal
+    console.log('🏪 Navbar: Become seller clicked');
+    
+    // Force fresh user load before deciding action
     await loadUser();
     
-    if (user?.isSeller) {
+    // Check the LATEST user state
+    const freshUser = await getCurrentUser();
+    
+    console.log('📊 Navbar: Fresh user check:', {
+      isSeller: freshUser?.isSeller
+    });
+    
+    if (freshUser?.isSeller) {
       // Already a seller, go to dashboard
+      console.log('✅ Navbar: User is seller, going to dashboard');
       router.push('/dashboard');
     } else {
       // Not a seller yet, show modal
+      console.log('⚠️ Navbar: User is not seller, showing modal');
       setShowBecomeSellerModal(true);
     }
   };
@@ -163,7 +184,7 @@ export default function Navbar() {
                 <>
                   {/* Login */}
                   <Link 
-                    href="/auth" 
+                    href="/auth?mode=login" 
                     className="hidden md:block text-black hover:text-gray-600 font-medium uppercase tracking-wide text-sm transition-colors" 
                     style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
                   >
@@ -172,7 +193,7 @@ export default function Navbar() {
 
                   {/* Sign Up */}
                   <Link
-                    href="/auth"
+                    href="/auth?mode=signup"
                     className="hidden md:block bg-black text-white px-4 py-2 rounded-lg text-sm font-medium uppercase tracking-wide transition-colors hover:bg-gray-800"
                     style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
                   >
@@ -224,7 +245,7 @@ export default function Navbar() {
                     {!user.isSeller ? (
                       <button
                         onClick={() => {
-                          setShowBecomeSellerModal(true);
+                          handleBecomeSellerClick();
                           setMobileMenuOpen(false);
                         }}
                         className="text-left bg-black text-white px-4 py-2 rounded-lg text-sm font-medium uppercase tracking-wide"
@@ -250,11 +271,11 @@ export default function Navbar() {
                   </>
                 ) : (
                   <>
-                    <Link href="/auth" className="text-black hover:text-gray-600 font-medium uppercase tracking-wide text-sm" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+                    <Link href="/auth?mode=login" className="text-black hover:text-gray-600 font-medium uppercase tracking-wide text-sm" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
                       Login
                     </Link>
                     <Link
-                      href="/auth"
+                      href="/auth?mode=signup"
                       className="bg-black text-white px-4 py-2 rounded-lg text-sm font-medium uppercase tracking-wide text-center hover:bg-gray-800"
                       style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
                     >
@@ -272,9 +293,11 @@ export default function Navbar() {
       <BecomeSellerModal 
         isOpen={showBecomeSellerModal}
         onClose={() => setShowBecomeSellerModal(false)}
-        onSuccess={() => {
+        onSuccess={async () => {
           setShowBecomeSellerModal(false);
-          loadUser();
+          // Force reload user after becoming seller
+          console.log('✅ Navbar: Seller created, reloading user...');
+          await loadUser();
           router.push('/dashboard');
         }}
       />

@@ -8,7 +8,11 @@ import { Mail, Lock, User, AlertCircle } from 'lucide-react';
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [isLogin, setIsLogin] = useState(true);
+  
+  // Check URL parameter for mode (login or signup)
+  const modeParam = searchParams.get('mode');
+  const [isLogin, setIsLogin] = useState(modeParam !== 'signup');
+  
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -74,18 +78,25 @@ export default function AuthPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
-            THRIFTGRAM
+          <img 
+            src="/logo1.png" 
+            alt="ThriftGram" 
+            className="h-16 w-auto mx-auto mb-4"
+          />
+          <h1 className="text-3xl font-bold text-black mb-2 uppercase" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+            {isLogin ? 'Welcome Back' : 'Join ThriftGram'}
           </h1>
-          <p className="text-gray-600">Discover Instagram Thrift Shops</p>
+          <p className="text-gray-600" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+            {isLogin ? 'Sign in to your account' : 'Create your account to start shopping'}
+          </p>
         </div>
 
         {/* Auth Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white border-2 border-black rounded-lg p-8 shadow-lg">
           {/* Toggle Login/Signup */}
           <div className="flex gap-2 mb-6 bg-gray-100 p-1 rounded-lg">
             <button
@@ -94,9 +105,9 @@ export default function AuthPage() {
                 setIsLogin(true);
                 setError('');
               }}
-              className={`flex-1 py-2 rounded-md font-medium transition-all ${
+              className={`flex-1 py-3 rounded-md font-bold transition-all uppercase tracking-wide ${
                 isLogin
-                  ? 'bg-white text-black shadow-sm'
+                  ? 'bg-black text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
               style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
@@ -109,9 +120,9 @@ export default function AuthPage() {
                 setIsLogin(false);
                 setError('');
               }}
-              className={`flex-1 py-2 rounded-md font-medium transition-all ${
+              className={`flex-1 py-3 rounded-md font-bold transition-all uppercase tracking-wide ${
                 !isLogin
-                  ? 'bg-white text-black shadow-sm'
+                  ? 'bg-black text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
               style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
@@ -122,9 +133,9 @@ export default function AuthPage() {
 
           {/* Error Message */}
           {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+            <div className="mb-4 p-3 bg-red-50 border-2 border-red-200 rounded-lg flex items-start gap-2">
               <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={18} />
-              <span className="text-red-600 text-sm">{error}</span>
+              <span className="text-red-600 text-sm" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>{error}</span>
             </div>
           )}
 
@@ -133,7 +144,7 @@ export default function AuthPage() {
             {/* Full Name (Signup only) */}
             {!isLogin && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+                <label className="block text-sm font-bold text-black mb-2 uppercase tracking-wide" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
                   Full Name
                 </label>
                 <div className="relative">
@@ -145,7 +156,7 @@ export default function AuthPage() {
                     onChange={handleChange}
                     placeholder="John Doe"
                     required
-                    className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                    className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
                     style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
                   />
                 </div>
@@ -154,7 +165,7 @@ export default function AuthPage() {
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+              <label className="block text-sm font-bold text-black mb-2 uppercase tracking-wide" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
                 Email
               </label>
               <div className="relative">
@@ -166,7 +177,7 @@ export default function AuthPage() {
                   onChange={handleChange}
                   placeholder="you@example.com"
                   required
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
                   style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
                 />
               </div>
@@ -174,7 +185,7 @@ export default function AuthPage() {
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+              <label className="block text-sm font-bold text-black mb-2 uppercase tracking-wide" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
                 Password
               </label>
               <div className="relative">
@@ -187,24 +198,32 @@ export default function AuthPage() {
                   placeholder="••••••••"
                   required
                   minLength={6}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-black"
                   style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
                 />
               </div>
+              {!isLogin && (
+                <p className="text-xs text-gray-500 mt-1" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+                  Must be at least 6 characters
+                </p>
+              )}
             </div>
 
             {/* Info text for signup */}
             {!isLogin && (
-              <p className="text-xs text-gray-500 text-center">
-                Start shopping now. You can become a seller anytime from your profile!
-              </p>
+              <div className="bg-gray-50 border-2 border-gray-200 rounded-lg p-3">
+                <p className="text-xs text-gray-700 font-medium" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>
+                  ✓ Start shopping immediately after signup<br/>
+                  ✓ Become a seller anytime from your profile
+                </p>
+              </div>
             )}
 
             {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-lg font-medium hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl uppercase tracking-wide"
+              className="w-full bg-black text-white py-4 rounded-lg font-bold hover:bg-gray-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl uppercase tracking-wide"
               style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
             >
               {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Create Account'}
@@ -215,10 +234,10 @@ export default function AuthPage() {
           <div className="mt-6">
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t-2 border-gray-300"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>Or continue with</span>
+                <span className="px-2 bg-white text-gray-600 font-bold uppercase tracking-wide" style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}>Or continue with</span>
               </div>
             </div>
 
@@ -226,7 +245,7 @@ export default function AuthPage() {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className="mt-4 w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-4 w-full flex items-center justify-center gap-3 px-4 py-3 border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-bold uppercase tracking-wide"
               style={{fontFamily: 'Space Grotesk, Arial, sans-serif'}}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">

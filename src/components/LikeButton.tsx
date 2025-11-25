@@ -26,16 +26,23 @@ export default function LikeButton({
     e.preventDefault();
     e.stopPropagation();
     
+    // Check if user is authenticated first
+    if (!isAuthenticated) {
+      console.log('❌ Like button: User not authenticated, redirecting to /auth');
+      router.push('/auth');
+      return;
+    }
+    
     try {
       await toggleLike(productId);
     } catch (error: any) {
+      console.error('❌ Like button error:', error);
+      
       if (error.message === 'AUTH_REQUIRED') {
-        // Redirect to auth page
+        // User session expired, redirect to auth
         router.push('/auth');
-      } else {
-        // Show error toast or notification
-        console.error('Failed to toggle like:', error);
       }
+      // For other errors, silently fail (don't alert)
     }
   };
 

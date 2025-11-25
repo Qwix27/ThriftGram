@@ -31,25 +31,37 @@ export default function DashboardPage() {
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [user, setUser] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const checkAuth = useCallback(async () => {
     try {
+      console.log('🔍 Dashboard: Starting auth check...');
+      
       const userData = await getCurrentUser();
+      console.log('👤 Dashboard: User data:', userData);
       
       if (!userData) {
-        console.log('No user found, redirecting to auth');
+        console.log('❌ Dashboard: No user found, redirecting to auth');
         router.push('/auth');
         return;
       }
 
       setUser(userData);
+      console.log('✅ Dashboard: User loaded:', {
+        id: userData.id,
+        email: userData.email,
+        isSeller: userData.isSeller
+      });
 
       // Check if user is a seller
       if (!userData.isSeller) {
-        console.log('User is not a seller, redirecting home');
-        router.push('/');
+        console.log('❌ Dashboard: User is NOT a seller, redirecting home');
+        setError('You need to be a seller to access this page');
+        setTimeout(() => router.push('/'), 2000);
         return;
       }
+
+      console.log('✅ Dashboard: User IS a seller, fetching shop...');
 
       // Get shop data
       const { data: shopData, error: shopError } = await supabase
@@ -58,19 +70,22 @@ export default function DashboardPage() {
         .eq('owner_id', userData.id)
         .maybeSingle();
 
+      console.log('🏪 Dashboard: Shop query result:', { shopData, shopError });
+
       if (shopError) {
-        console.error('Shop query error:', shopError);
+        console.error('❌ Dashboard: Shop query error:', shopError);
+        setError(`Shop error: ${shopError.message}`);
       }
 
       if (!shopData) {
-        console.log('No shop found for seller, might need to create one');
-        // Don't redirect - show empty state instead
+        console.log('⚠️ Dashboard: No shop found for seller');
         setShop(null);
         setProducts([]);
         setLoading(false);
         return;
       }
 
+      console.log('✅ Dashboard: Shop found:', shopData.shop_name);
       setShop(shopData);
 
       // Get products
@@ -80,15 +95,23 @@ export default function DashboardPage() {
         .eq('shop_id', shopData.id)
         .order('created_at', { ascending: false });
 
+      console.log('📦 Dashboard: Products query result:', { 
+        count: productsData?.length || 0, 
+        error: productsError 
+      });
+
       if (productsError) {
-        console.error('Products query error:', productsError);
+        console.error('❌ Dashboard: Products query error:', productsError);
       }
 
       setProducts(productsData || []);
       setLoading(false);
+      console.log('✅ Dashboard: Load complete');
+      
     } catch (error) {
-      console.error('Dashboard auth error:', error);
-      router.push('/auth');
+      console.error('💥 Dashboard: Unexpected error:', error);
+      setError(`Unexpected error: ${error}`);
+      setTimeout(() => router.push('/auth'), 2000);
     }
   }, [router]);
 
@@ -111,16 +134,49 @@ export default function DashboardPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 py-8">
-            <div className="flex items-center gap-6 animate-pulse">
-              <div className="w-20 h-20 bg-gray-200 rounded-full" />
-              <div className="flex-1">
-                <div className="h-8 bg-gray-200 rounded w-48 mb-3" />
-                <div className="h-4 bg-gray-200 rounded w-32" />
-              </div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+          {error && (
+            <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error && !shop) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center max-w-md">
+          <Package size={64} className="mx-auto text-red-300 mb-4" />
+          <h1 className="text-2xl font-bold mb-4 uppercase" style={{fontFamily: 'Space Grotesk, sans-serif'}}>
+            Error Loading Dashboard
+          </h1>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-red-600 text-sm">{error}</p>
+          </div>
+          <div className="space-y-3">
+            <button 
+              onClick={() => {
+                setError(null);
+                setLoading(true);
+                checkAuth();
+              }}
+              className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 w-full"
+            >
+              Retry
+            </button>
+            <Link 
+              href="/" 
+              className="block text-gray-600 hover:text-black"
+            >
+              Go Home
+            </Link>
           </div>
         </div>
       </div>

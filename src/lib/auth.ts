@@ -99,12 +99,18 @@ export async function signIn(email: string, password: string) {
 
     console.log('Sign in successful:', data.user.id);
     
-    // Get user profile
-    const { data: profile } = await supabase
+    // Get user profile with FRESH data
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('is_seller, full_name')
       .eq('id', data.user.id)
       .single();
+
+    if (profileError) {
+      console.error('Profile fetch error:', profileError);
+    }
+
+    console.log('Profile data on signin:', profile);
 
     return {
       user: data.user,
@@ -130,34 +136,70 @@ export async function signOut() {
 
 export async function getCurrentUser() {
   try {
-    const { data: { user }, error } = await supabase.auth.getUser();
+    console.log('🔍 getCurrentUser: Starting...');
     
-    if (error) throw error;
-    if (!user) return null;
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    
+    if (userError) {
+      console.error('❌ getCurrentUser: Auth error:', userError);
+      throw userError;
+    }
+    
+    if (!user) {
+      console.log('❌ getCurrentUser: No user found');
+      return null;
+    }
 
-    // Get profile info
-    const { data: profile } = await supabase
+    console.log('✅ getCurrentUser: Auth user found:', user.id);
+
+    // CRITICAL FIX: Get FRESH profile data directly from database
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('is_seller, full_name, seller_verified, avatar_url')
+      .select('id, email, full_name, is_seller, seller_verified, avatar_url')
       .eq('id', user.id)
       .single();
 
+    if (profileError) {
+      console.error('❌ getCurrentUser: Profile fetch error:', profileError);
+      // If profile doesn't exist, return basic user info
+      return {
+        ...user,
+        isSeller: false,
+        fullName: user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+        sellerVerified: false,
+        avatarUrl: user.user_metadata?.avatar_url || null,
+      };
+    }
+
+    console.log('📊 getCurrentUser: Raw profile from DB:', profile);
+    console.log('📊 getCurrentUser: is_seller value:', profile.is_seller);
+    console.log('📊 getCurrentUser: is_seller type:', typeof profile.is_seller);
+
     // Fallback to user metadata if profile name is empty
-    const fullName = profile?.full_name || 
+    const fullName = profile.full_name || 
                      user.user_metadata?.full_name || 
                      user.user_metadata?.name ||
                      user.email?.split('@')[0] || 
                      'User';
 
-    return {
+    const userData = {
       ...user,
-      isSeller: profile?.is_seller || false,
+      isSeller: profile.is_seller === true, // Explicitly check for boolean true
       fullName: fullName,
-      sellerVerified: profile?.seller_verified || false,
-      avatarUrl: profile?.avatar_url || user.user_metadata?.avatar_url || null,
+      sellerVerified: profile.seller_verified || false,
+      avatarUrl: profile.avatar_url || user.user_metadata?.avatar_url || null,
     };
+
+    console.log('✅ getCurrentUser: Final userData:', {
+      id: userData.id,
+      email: userData.email,
+      isSeller: userData.isSeller,
+      fullName: userData.fullName
+    });
+
+    return userData;
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error('💥 getCurrentUser: Unexpected error:', error);
     return null;
   }
 }
@@ -194,22 +236,36 @@ export async function becomeSeller(data: {
   bio?: string;
 }) {
   try {
+    console.log('🏪 becomeSeller: Starting...');
+    
     const { data: { user } } = await supabase.auth.getUser();
     
     if (!user) {
       throw new Error('You must be logged in to become a seller');
     }
 
+    console.log('✅ becomeSeller: User authenticated:', user.id);
+
     // Check if user is already a seller
-    const { data: profile } = await supabase
+    const { data: profile, error: profileFetchError } = await supabase
       .from('profiles')
       .select('is_seller')
       .eq('id', user.id)
       .single();
 
+    if (profileFetchError) {
+      console.error('❌ becomeSeller: Profile fetch error:', profileFetchError);
+      throw new Error('Failed to check seller status');
+    }
+
+    console.log('📊 becomeSeller: Current profile:', profile);
+
     if (profile?.is_seller) {
+      console.log('⚠️ becomeSeller: User is already a seller');
       throw new Error('You are already a seller');
     }
+
+    console.log('✅ becomeSeller: Updating profile to seller...');
 
     // Update profile to seller
     const { error: profileError } = await supabase
@@ -221,9 +277,12 @@ export async function becomeSeller(data: {
       .eq('id', user.id);
 
     if (profileError) {
-      console.error('Profile update error:', profileError);
+      console.error('❌ becomeSeller: Profile update error:', profileError);
       throw new Error('Failed to update profile');
     }
+
+    console.log('✅ becomeSeller: Profile updated to seller');
+    console.log('🏪 becomeSeller: Creating shop...');
 
     // Create shop
     const { error: shopError } = await supabase
@@ -236,7 +295,7 @@ export async function becomeSeller(data: {
       });
 
     if (shopError) {
-      console.error('Shop creation error:', shopError);
+      console.error('❌ becomeSeller: Shop creation error:', shopError);
       
       // Rollback profile update
       await supabase
@@ -247,9 +306,10 @@ export async function becomeSeller(data: {
       throw new Error('Failed to create shop. Please try again.');
     }
 
+    console.log('✅ becomeSeller: Shop created successfully');
     return { success: true };
   } catch (error: any) {
-    console.error('Become seller error:', error);
+    console.error('💥 becomeSeller: Error:', error);
     throw error;
   }
 }
