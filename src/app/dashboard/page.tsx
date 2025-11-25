@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
+import { getCurrentUser } from '@/lib/auth';
 import { Plus, Edit, Trash2, Package } from 'lucide-react';
 
 interface Shop {
@@ -29,50 +30,64 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [shop, setShop] = useState<Shop | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [user, setUser] = useState<any>(null);
 
   const checkAuth = useCallback(async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const userData = await getCurrentUser();
       
-      if (!user) {
+      if (!userData) {
+        console.log('No user found, redirecting to auth');
         router.push('/auth');
         return;
       }
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('user_type')
-        .eq('id', user.id)
-        .single();
+      setUser(userData);
 
-      if (profile?.user_type !== 'shop_owner') {
+      // Check if user is a seller
+      if (!userData.isSeller) {
+        console.log('User is not a seller, redirecting home');
         router.push('/');
         return;
       }
 
-      const { data: shopData } = await supabase
+      // Get shop data
+      const { data: shopData, error: shopError } = await supabase
         .from('shops')
         .select('id, shop_name, instagram_handle, bio, profile_image')
-        .eq('owner_id', user.id)
-        .single();
+        .eq('owner_id', userData.id)
+        .maybeSingle();
+
+      if (shopError) {
+        console.error('Shop query error:', shopError);
+      }
 
       if (!shopData) {
-        router.push('/');
+        console.log('No shop found for seller, might need to create one');
+        // Don't redirect - show empty state instead
+        setShop(null);
+        setProducts([]);
+        setLoading(false);
         return;
       }
 
       setShop(shopData);
 
-      const { data: productsData } = await supabase
+      // Get products
+      const { data: productsData, error: productsError } = await supabase
         .from('products')
         .select('id, name, price, images, category, stock, likes_count')
         .eq('shop_id', shopData.id)
         .order('created_at', { ascending: false });
 
+      if (productsError) {
+        console.error('Products query error:', productsError);
+      }
+
       setProducts(productsData || []);
       setLoading(false);
     } catch (error) {
-      console.error('Auth error:', error);
+      console.error('Dashboard auth error:', error);
       router.push('/auth');
     }
   }, [router]);
@@ -93,7 +108,7 @@ export default function DashboardPage() {
     }
   };
 
-  // Skeleton Loading
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -108,26 +123,37 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="bg-white rounded-lg shadow p-6 animate-pulse">
-                <div className="h-4 bg-gray-200 rounded w-24 mb-3" />
-                <div className="h-10 bg-gray-200 rounded w-16" />
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
     );
   }
 
+  // No shop state
   if (!shop) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Shop not found</h1>
-          <Link href="/" className="bg-black text-white px-6 py-3 rounded-lg">Go Home</Link>
+        <div className="text-center max-w-md">
+          <Package size={64} className="mx-auto text-gray-300 mb-4" />
+          <h1 className="text-2xl font-bold mb-4 uppercase" style={{fontFamily: 'Space Grotesk, sans-serif'}}>
+            Shop Setup Required
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Your seller account is active, but we couldn't find your shop. 
+            This might be a temporary issue.
+          </p>
+          <div className="space-y-3">
+            <button 
+              onClick={() => checkAuth()}
+              className="bg-black text-white px-6 py-3 rounded-lg hover:bg-gray-800 w-full"
+            >
+              Retry
+            </button>
+            <Link 
+              href="/" 
+              className="block text-gray-600 hover:text-black"
+            >
+              Go Home
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -218,7 +244,7 @@ export default function DashboardPage() {
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4">
                         <div className="flex items-center">
-                          <img src={product.images?.[0] || '/placeholder.jpg'} alt={product.name} className="h-16 w-16 rounded-lg object-cover" loading="lazy" />
+                          <img src={product.images?.[0] || '/placeholder.jpg'} alt={product.name} className="h-16 w-16 rounded-lg object-cover" />
                           <span className="ml-4 font-medium">{product.name}</span>
                         </div>
                       </td>

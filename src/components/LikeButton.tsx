@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { Heart } from 'lucide-react';
 import { useLikes } from '@/lib/LikeContext';
 
@@ -17,13 +18,25 @@ export default function LikeButton({
   showCount = false, 
   likesCount = 0 
 }: LikeButtonProps) {
-  const { isLiked, toggleLike } = useLikes();
+  const router = useRouter();
+  const { isLiked, toggleLike, isAuthenticated } = useLikes();
   const liked = isLiked(productId);
 
   const handleClick = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    await toggleLike(productId);
+    
+    try {
+      await toggleLike(productId);
+    } catch (error: any) {
+      if (error.message === 'AUTH_REQUIRED') {
+        // Redirect to auth page
+        router.push('/auth');
+      } else {
+        // Show error toast or notification
+        console.error('Failed to toggle like:', error);
+      }
+    }
   };
 
   return (
@@ -31,6 +44,7 @@ export default function LikeButton({
       onClick={handleClick}
       className="flex items-center gap-2 group transition-transform hover:scale-110"
       type="button"
+      aria-label={liked ? 'Unlike' : 'Like'}
     >
       <Heart
         size={size}
