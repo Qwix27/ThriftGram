@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase';
 import { getCurrentUser } from '@/lib/auth';
 import { Plus, Edit, Trash2, Package } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Shop {
   id: string;
@@ -125,9 +126,10 @@ export default function DashboardPage() {
     try {
       await supabase.from('products').delete().eq('id', productId);
       setProducts(products.filter(p => p.id !== productId));
+      toast.success('Product deleted successfully')
     } catch (error) {
       console.error('Delete error:', error);
-      alert('Failed to delete product');
+      toast.error('Failed to delete product');
     }
   };
 

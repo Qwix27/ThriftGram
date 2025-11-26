@@ -20,10 +20,8 @@ function validateShopName(name: string): string {
     throw new Error('Shop name must be less than 100 characters');
   }
   
-  const bannedWords = ['test', 'admin', 'thriftgram'];
-  if (bannedWords.some(word => sanitized.toLowerCase().includes(word))) {
-    throw new Error('Shop name contains restricted words');
-  }
+  // Remove banned words check for now - too restrictive
+  // You can add it back later with better logic
   
   return sanitized;
 }
@@ -82,7 +80,7 @@ export async function POST(request: NextRequest) {
       user = await getUserFromToken(token);
       console.log('✅ API: User authenticated:', user.id);
     } catch (error) {
-      console.log('❌ API: Invalid token');
+      console.log('❌ API: Invalid token:', error);
       return NextResponse.json(
         { error: 'Invalid authentication token. Please sign in again.' },
         { status: 401 }
@@ -90,11 +88,19 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Check if user is already a seller
-    const { data: profile } = await supabaseAdmin
+    const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')
       .select('is_seller')
       .eq('id', user.id)
       .single();
+
+    if (profileError) {
+      console.error('❌ API: Profile fetch error:', profileError);
+      return NextResponse.json(
+        { error: 'Failed to fetch profile. Please try again.' },
+        { status: 500 }
+      );
+    }
 
     if (profile?.is_seller) {
       console.log('⚠️ API: User is already a seller');
@@ -130,30 +136,54 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate and sanitize inputs
-    const validatedData = {
-      shopName: validateShopName(body.shopName),
-      instagramHandle: validateInstagramHandle(body.instagramHandle),
-      bio: validateBio(body.bio),
-    };
+    let validatedData;
+    try {
+      validatedData = {
+        shopName: validateShopName(body.shopName),
+        instagramHandle: validateInstagramHandle(body.instagramHandle),
+        bio: validateBio(body.bio),
+      };
+      console.log('✅ API: Data validated:', validatedData);
+    } catch (validationError: any) {
+      console.error('❌ API: Validation error:', validationError.message);
+      return NextResponse.json(
+        { error: validationError.message },
+        { status: 400 }
+      );
+    }
 
-    console.log('✅ API: Data validated:', validatedData);
-
-    // 5. Check if shop name or Instagram handle already exists
-    const { data: duplicateShop } = await supabaseAdmin
+    // 5. Check if shop name already exists
+    const { data: shopNameCheck } = await supabaseAdmin
       .from('shops')
       .select('id')
-      .or(`shop_name.eq.${validatedData.shopName},instagram_handle.eq.${validatedData.instagramHandle}`)
+      .eq('shop_name', validatedData.shopName)
       .maybeSingle();
 
-    if (duplicateShop) {
+    if (shopNameCheck) {
+      console.log('⚠️ API: Shop name already taken');
       return NextResponse.json(
-        { error: 'Shop name or Instagram handle already taken' },
+        { error: 'Shop name is already taken' },
         { status: 409 }
       );
     }
 
-    // 6. Start transaction: Update profile and create shop
-    const { error: profileError } = await supabaseAdmin
+    // 6. Check if Instagram handle already exists
+    const { data: handleCheck } = await supabaseAdmin
+      .from('shops')
+      .select('id')
+      .eq('instagram_handle', validatedData.instagramHandle)
+      .maybeSingle();
+
+    if (handleCheck) {
+      console.log('⚠️ API: Instagram handle already taken');
+      return NextResponse.json(
+        { error: 'Instagram handle is already taken' },
+        { status: 409 }
+      );
+    }
+
+    // 7. Update profile to seller
+    const { error: profileUpdateError } = await supabaseAdmin
       .from('profiles')
       .update({ 
         is_seller: true,
@@ -161,8 +191,8 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', user.id);
 
-    if (profileError) {
-      console.error('❌ API: Profile update error:', profileError);
+    if (profileUpdateError) {
+      console.error('❌ API: Profile update error:', profileUpdateError);
       return NextResponse.json(
         { error: 'Failed to update profile. Please try again.' },
         { status: 500 }
@@ -171,7 +201,7 @@ export async function POST(request: NextRequest) {
 
     console.log('✅ API: Profile updated to seller');
 
-    // Create shop
+    // 8. Create shop
     const { data: shop, error: shopError } = await supabaseAdmin
       .from('shops')
       .insert({
@@ -193,14 +223,14 @@ export async function POST(request: NextRequest) {
         .eq('id', user.id);
       
       return NextResponse.json(
-        { error: 'Failed to create shop. Please try again.' },
+        { error: `Failed to create shop: ${shopError.message}` },
         { status: 500 }
       );
     }
 
-    console.log('✅ API: Shop created successfully');
+    console.log('✅ API: Shop created successfully:', shop.id);
 
-    // 7. Return success
+    // 9. Return success
     return NextResponse.json(
       { 
         success: true, 
@@ -213,15 +243,9 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('💥 API: Unexpected error:', error);
     
-    if (error.message.includes('must be') || error.message.includes('Invalid')) {
-      return NextResponse.json(
-        { error: error.message },
-        { status: 400 }
-      );
-    }
-
+    // Return detailed error for debugging
     return NextResponse.json(
-      { error: 'An unexpected error occurred. Please try again.' },
+      { error: `Server error: ${error.message}` },
       { status: 500 }
     );
   }

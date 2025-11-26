@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Upload, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function AddProductPage() {
   const router = useRouter();
@@ -122,11 +123,14 @@ export default function AddProductPage() {
 
       // Success!
       console.log('✅ Product created:', result.product);
-      router.push('/dashboard');
+      toast.success('Product created successfully! 🎉');
+      setTimeout(() => router.push('/dashboard'), 1000);
       
     } catch (error: any) {
       console.error('❌ Product creation error:', error);
-      setError(error.message || 'Failed to create product. Please try again.');
+      const errorMsg = error.message || 'Failed to create product. Please try again.';
+      setError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }

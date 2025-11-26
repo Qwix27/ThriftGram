@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { ShoppingCart, Instagram } from 'lucide-react';
 import { useCart } from '@/lib/CartContext';
 import LikeButton from '../../../components/LikeButton';
+import toast from 'react-hot-toast';
 
 interface Product {
   id: string;
@@ -50,6 +51,32 @@ export default function ProductPage() {
     loadProduct();
   }, [params.id]);
 
+  // Add this new useEffect AFTER the loadProduct useEffect
+useEffect(() => {
+  if (product && !loading) {
+    // Track recently viewed
+    const recentKey = 'thriftgram_recent_products';
+    const recent = JSON.parse(localStorage.getItem(recentKey) || '[]');
+    
+    const productData = {
+      id: product.id,
+      name: product.name,
+      image: product.images[0],
+      price: product.price,
+      shop_name: product.shops.shop_name,
+      viewedAt: new Date().toISOString()
+    };
+    
+    // Remove if already exists (to update position)
+    const filtered = recent.filter((p: any) => p.id !== product.id);
+    
+    // Add to beginning and keep only last 10
+    const updated = [productData, ...filtered].slice(0, 10);
+    
+    localStorage.setItem(recentKey, JSON.stringify(updated));
+  }
+}, [product, loading]);
+
   const loadProduct = async () => {
     try {
       const { data, error } = await supabase
@@ -87,7 +114,7 @@ export default function ProductPage() {
       price: product.price,
       image: product.images[0],
     });
-    alert('Added to cart!');
+    toast.success('Added to cart! 🛒');
   };
 
   if (loading) {
