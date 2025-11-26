@@ -31,7 +31,7 @@ a {
 
 @media (prefers-color-scheme: dark) {
   html {
-    color-scheme: dark;
+    color-scheme: light; /* Force light mode */
   }
 }
 
@@ -75,7 +75,34 @@ button {
   cursor: pointer;
 }
 
-/* Form styles */
+/* Form styles - FIX INPUT COLORS */
 input, textarea, select {
   font-family: inherit;
+  background-color: #ffffff !important; /* Force white background */
+  color: #000000 !important; /* Force black text */
+}
+
+/* Fix for autofill background */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important;
+  -webkit-text-fill-color: #000000 !important;
+}
+
+/* Placeholder text */
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af !important; /* Gray-400 */
+  opacity: 1;
+}
+
+/* Disabled inputs */
+input:disabled,
+textarea:disabled,
+select:disabled {
+  background-color: #f3f4f6 !important; /* Gray-100 */
+  color: #6b7280 !important; /* Gray-500 */
+  cursor: not-allowed;
 }
