@@ -6,6 +6,7 @@ import Navbar from '@/components/layout/Navbar'
 import Footer from '@/components/layout/Footer'
 import { CartProvider } from '@/lib/CartContext'
 import { LikeProvider } from '@/lib/LikeContext'
+import ToastProvider from '@/components/Toast';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -75,6 +76,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={spaceGrotesk.variable}>
       <body className={spaceGrotesk.className}>
+        <ToastProvider /> {/* Add this line */}
         <CartProvider>
           <LikeProvider>
             <Navbar />

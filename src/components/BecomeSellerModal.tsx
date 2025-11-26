@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { X, Store, Instagram, FileText, AlertCircle } from 'lucide-react';
 import { becomeSeller } from '@/lib/auth';
+import toast from 'react-hot-toast';
 
 interface BecomeSellerModalProps {
   isOpen: boolean;
@@ -63,10 +64,12 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
       setFormData({ shopName: '', instagramHandle: '', bio: '' });
       
       if (onSuccess) {
-        onSuccess();
-      } else {
-        router.push('/dashboard');
-      }
+      toast.success('Welcome to ThriftGram sellers! 🎉');
+      onSuccess();
+    } else {
+      toast.success('Welcome to ThriftGram sellers! 🎉');
+      router.push('/dashboard');
+    }
     } catch (err: any) {
       console.error('Become seller error:', err);
       
@@ -79,6 +82,7 @@ export default function BecomeSellerModal({ isOpen, onClose, onSuccess }: Become
         }, 1500);
       } else {
         setError(err.message || 'Failed to create seller account. Please try again.');
+        toast.error(err.message || 'Failed to create seller account');
       }
     } finally {
       setLoading(false);

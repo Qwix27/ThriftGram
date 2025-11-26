@@ -230,83 +230,42 @@ export async function signInWithGoogle() {
 }
 
 // Become a seller - this upgrades a buyer account to seller
+// NOW USES SECURE API ENDPOINT
 export async function becomeSeller(data: {
   shopName: string;
   instagramHandle: string;
   bio?: string;
 }) {
   try {
-    console.log('🏪 becomeSeller: Starting...');
+    console.log('🏪 becomeSeller: Calling secure API...');
     
-    const { data: { user } } = await supabase.auth.getUser();
+    // Get auth session for token
+    const { data: { session } } = await supabase.auth.getSession();
     
-    if (!user) {
-      throw new Error('You must be logged in to become a seller');
+    if (!session) {
+      throw new Error('Session expired. Please sign in again.');
+    }
+    
+    const response = await fetch('/api/seller/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`,
+      },
+      body: JSON.stringify({
+        shopName: data.shopName,
+        instagramHandle: data.instagramHandle,
+        bio: data.bio,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Failed to create seller account');
     }
 
-    console.log('✅ becomeSeller: User authenticated:', user.id);
-
-    // Check if user is already a seller
-    const { data: profile, error: profileFetchError } = await supabase
-      .from('profiles')
-      .select('is_seller')
-      .eq('id', user.id)
-      .single();
-
-    if (profileFetchError) {
-      console.error('❌ becomeSeller: Profile fetch error:', profileFetchError);
-      throw new Error('Failed to check seller status');
-    }
-
-    console.log('📊 becomeSeller: Current profile:', profile);
-
-    if (profile?.is_seller) {
-      console.log('⚠️ becomeSeller: User is already a seller');
-      throw new Error('You are already a seller');
-    }
-
-    console.log('✅ becomeSeller: Updating profile to seller...');
-
-    // Update profile to seller
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ 
-        is_seller: true,
-        seller_bio: data.bio || null,
-      })
-      .eq('id', user.id);
-
-    if (profileError) {
-      console.error('❌ becomeSeller: Profile update error:', profileError);
-      throw new Error('Failed to update profile');
-    }
-
-    console.log('✅ becomeSeller: Profile updated to seller');
-    console.log('🏪 becomeSeller: Creating shop...');
-
-    // Create shop
-    const { error: shopError } = await supabase
-      .from('shops')
-      .insert({
-        owner_id: user.id,
-        shop_name: data.shopName,
-        instagram_handle: data.instagramHandle,
-        bio: data.bio || null,
-      });
-
-    if (shopError) {
-      console.error('❌ becomeSeller: Shop creation error:', shopError);
-      
-      // Rollback profile update
-      await supabase
-        .from('profiles')
-        .update({ is_seller: false, seller_bio: null })
-        .eq('id', user.id);
-      
-      throw new Error('Failed to create shop. Please try again.');
-    }
-
-    console.log('✅ becomeSeller: Shop created successfully');
+    console.log('✅ becomeSeller: Success via API');
     return { success: true };
   } catch (error: any) {
     console.error('💥 becomeSeller: Error:', error);
